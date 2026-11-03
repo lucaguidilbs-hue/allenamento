@@ -108,6 +108,7 @@ details.how li{margin:4px 0}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 input[type=number]{-moz-appearance:textfield}
 .startbig{font-size:22px;padding:16px;letter-spacing:1px;font-family:"Barlow Condensed","Arial Narrow",Inter,sans-serif}
+.locked .sets,.locked .chk{opacity:.4;pointer-events:none}
 /* timer */
 #timer{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));z-index:30;display:none;padding:0 12px 8px}
 #timer.show{display:block}
@@ -498,7 +499,7 @@ function vHome(){
   const nStr=wkLogs.filter(l=>l.type==="str").length,km=wkLogs.filter(l=>l.type==="run").reduce((a,l)=>a+(+l.km||0),0);
   const others=[...W.filter(w=>w.m===mode&&w.id!==nx.id),MOB,RUN];
   let h=`<div class="top"><div><div class="kicker">Ciclo ${c.n} · settimana ${Math.min(c.wk,c.weeks)} di ${c.weeks}</div><h1>Allenamento</h1></div>${syncHTML()}</div>`;
-  if(st.draft){const w=WID[st.draft.wid];h+=`<div class="banner row between"><div><b>In corso:</b> ${esc(w.t)}<div class="tiny muted">${st.draft.start?"Iniziato alle "+new Date(st.draft.start).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}):"Pronto, non ancora partito"}</div></div><button class="btn pri sm" data-a="resume">Riprendi</button></div>`}
+  if(st.draft&&st.draft.start){const w=WID[st.draft.wid];h+=`<div class="banner row between"><div><b>In corso:</b> ${esc(w.t)}<div class="tiny muted">${st.draft.start?"Iniziato alle "+new Date(st.draft.start).toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"}):"Pronto, non ancora partito"}</div></div><button class="btn pri sm" data-a="resume">Riprendi</button></div>`}
   if(c.over)h+=`<div class="banner"><b>Ciclo ${c.n} finito: è ora di cambiare esercizi.</b><p class="small muted">Sono passate ${c.weeks} settimane: il corpo si è abituato. Cambia gli esercizi per dargli uno stimolo nuovo.</p><div class="row wrap"><button class="btn pri sm" data-a="newCycle">Cambia esercizi</button><button class="btn sm" data-a="exportOpen">📋 Resoconto per Claude</button></div><p class="tiny muted" style="margin-top:6px">Prima di cambiare, mandami il resoconto: ti preparo esercizi nuovi su misura.</p></div>`;
   h+=`<div class="seg">${Object.entries(MODES).map(([k,v])=>`<button class="${k===mode?"on":""}" data-a="mode" data-v="${k}">${v}</button>`).join("")}</div>`;
   h+=`<div class="card hi"><div class="kicker" style="color:var(--acc)">Prossimo allenamento</div><h2 style="font-size:30px;margin-top:4px">${esc(nx.t)}</h2><p class="small muted">${esc(nx.d)}</p><div class="row wrap" style="margin:8px 0 12px"><span class="chip">${nx.s.length} esercizi</span><span class="chip">~${estMin(nx)} min</span>${lastDone(nx.id)?`<span class="chip">ultima: ${ago(lastDone(nx.id))}</span>`:""}</div><button class="btn pri block" data-a="start" data-v="${nx.id}">Inizia</button></div>`;
@@ -515,12 +516,12 @@ function vSession(){
   h+=`<div class="kicker">${w.type==="mob"?"Mobilità":MODES[w.m]}</div><h1>${esc(w.t)}</h1><p class="small muted">${esc(w.d)}</p>`;
   if(!d.start)h+=`<div class="card hi" style="text-align:center"><button class="btn pri block startbig" data-a="go">▶ START</button><p class="tiny muted" style="margin:8px 0 0">${w.type==="mob"?"Premi Start quando sei pronto.":"Il cronometro parte quando premi Start: il riscaldamento fa parte dell'allenamento."}</p></div>`;
   if(w.type==="mob"){
-    h+=`<div class="ex">`+d.ex.map((e,i)=>{const ex=EX[e.x],slot=w.s.find(s=>s.id===e.slot);const on=e.sets[0].done;return `<div class="mobrow"><button class="chk ${on?"on":""}" data-a="tick" data-i="${i}" data-j="0">✓</button>${media(e.x)?`<button class="thwrap" data-a="how" data-v="${e.x}">${media(e.x,"sm")}</button>`:""}<div class="grow"><b>${esc(ex.n)}</b> <span class="chip">${esc(slot.r)}${slot.lato?" per lato":""}</span><div class="small muted" style="margin-top:4px">${ex.c.map(esc).join(" ")}</div></div></div>`}).join("")+`</div>`;
+    h+=`<div class="ex ${d.start?"":"locked"}">`+d.ex.map((e,i)=>{const ex=EX[e.x],slot=w.s.find(s=>s.id===e.slot);const on=e.sets[0].done;return `<div class="mobrow"><button class="chk ${on?"on":""}" data-a="tick" data-i="${i}" data-j="0">✓</button>${media(e.x)?`<button class="thwrap" data-a="how" data-v="${e.x}">${media(e.x,"sm")}</button>`:""}<div class="grow"><b>${esc(ex.n)}</b> <span class="chip">${esc(slot.r)}${slot.lato?" per lato":""}</span><div class="small muted" style="margin-top:4px">${ex.c.map(esc).join(" ")}</div></div></div>`}).join("")+`</div>`;
     h+=`<p class="tiny muted">Muoviti lento e senza dolore. Se senti formicolii alle braccia o dolore che si irradia, fermati e parlane con un medico o un fisioterapista.</p>`;
   }else{
     {const wm=WARM[w.m],started=d.ex.some(e=>e.sets.some(x=>x.done));
     h+=`<details class="card how" style="padding:12px 14px" ${started?"":"open"}><summary style="color:var(--tx)"><b>Riscaldamento</b> <span class="muted small">· ~${wm.min} min ▾</span></summary><p class="tiny muted" style="margin:4px 0 2px">Tocca un'animazione per vederla in grande.</p>${wm.items.map(([x,r])=>`<div class="row" style="gap:12px;margin:10px 0"><button class="thwrap" data-a="how" data-v="${x}">${media(x,"sm")}</button><div class="grow"><b class="small" style="color:var(--tx)">${esc(EX[x].n)}</b><div class="tiny muted">${esc(r)}</div></div></div>`).join("")}<p class="small muted" style="margin-top:4px">${esc(wm.note)}</p></details>`;}
-    h+=d.ex.map((e,i)=>exCard(w,e,i)).join("");
+    h+=`<div class="${d.start?"":"locked"}">`+d.ex.map((e,i)=>exCard(w,e,i)).join("")+`</div>`;
     if(w.fin)h+=`<div class="card"><div class="kicker">Finale cardio</div><p>${esc(w.fin)}</p></div>`;
   }
   h+=`<div class="card"><label class="small muted">Note (come ti sei sentito, dolori, macchine occupate…)</label><textarea rows="2" data-note="1" style="margin-top:6px">${esc(d.note||"")}</textarea></div>`;
@@ -639,7 +640,7 @@ function modal(html){document.getElementById("sheet").innerHTML=html;document.ge
 function closeModal(){document.getElementById("modal").classList.remove("show")}
 function makeSets(w,slot,x){const prev=lastFor(x,null);return Array.from({length:slot.sets},(_,j)=>({kg:EX[x].u==="kg"&&prev&&prev.sets[j]?prev.sets[j].kg||"":"",r:"",done:false}))}
 function startWorkout(id,force){
-  if(st.draft&&st.draft.wid!==id&&!force){modal(`<h2>Hai un allenamento in corso</h2><p class="muted">${esc(WID[st.draft.wid].t)} non è ancora stato salvato.</p><button class="btn pri block" data-a="resume" style="margin-top:12px">Riprendi quello</button><button class="btn block danger" data-a="startForce" data-v="${id}" style="margin-top:8px">Scartalo e inizia ${esc(WID[id].t)}</button><button class="btn ghost block" data-a="close" style="margin-top:8px">Chiudi</button>`);return}
+  if(st.draft&&st.draft.start&&st.draft.wid!==id&&!force){modal(`<h2>Hai un allenamento in corso</h2><p class="muted">${esc(WID[st.draft.wid].t)} non è ancora stato salvato.</p><button class="btn pri block" data-a="resume" style="margin-top:12px">Riprendi quello</button><button class="btn block danger" data-a="startForce" data-v="${id}" style="margin-top:8px">Scartalo e inizia ${esc(WID[id].t)}</button><button class="btn ghost block" data-a="close" style="margin-top:8px">Chiudi</button>`);return}
   if(st.draft&&st.draft.wid===id){resume();return}
   const w=WID[id];
   if(w.type==="run")st.draft={wid:"run",type:"run",start:null,mode:st.mode,day:todayISO()};
@@ -655,7 +656,7 @@ const A={
   startForce(b){st.draft=null;startWorkout(b.dataset.v,true)},
   resume(){resume()},
   close(){closeModal()},
-  tick(b){if(!st.draft.start){st.draft.start=Date.now();keepAwake()}const e=st.draft.ex[+b.dataset.i],s=e.sets[+b.dataset.j];s.done=!s.done;saveLocal();
+  tick(b){if(!st.draft.start){toast("Premi ▶ START per iniziare l'allenamento");return}const e=st.draft.ex[+b.dataset.i],s=e.sets[+b.dataset.j];s.done=!s.done;saveLocal();
     const w=WID[st.draft.wid],slot=w.s.find(x=>x.id===e.slot);
     if(s.done&&!s.r&&w.type!=="mob"){const t=slotTop(slot);const m=String(slot.r).match(/^(\d+)/);if(EX[e.x].u==="sec"||m)s.r=String(t||(m?m[1]:""))}
     const y=window.scrollY;render();window.scrollTo(0,y);
