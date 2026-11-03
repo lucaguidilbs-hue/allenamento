@@ -115,6 +115,11 @@ input[type=number]{-moz-appearance:textfield}
 #timer .in{max-width:560px;margin:0 auto;background:#000;border:1px solid var(--acc);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 30px #000a}
 #timer .t{font-family:"Barlow Condensed","Arial Narrow",Inter,system-ui,sans-serif;font-size:30px;font-weight:700;min-width:70px;color:var(--acc)}
 #timer .bar{flex:1}
+#timer .in.last5{border-color:#ffb547}
+#timer .in.last5 .t{color:#ffb547}
+#timer .in.pulse .t{animation:tpulse .35s ease-out}
+#timer .in.go{background:var(--acc)}#timer .in.go .t,#timer .in.go .tiny{color:var(--accTx)}
+@keyframes tpulse{0%{transform:scale(1.25)}100%{transform:scale(1)}}
 /* nav */
 nav{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(14,15,18,.94);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
 nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
@@ -629,10 +634,16 @@ function vGuide(){
    AZIONI
    ========================================================= */
 let actx=null;
-function beep(){try{if(!actx)return;const t=actx.currentTime;[0,0.25,0.5].forEach(o=>{const g=actx.createGain(),os=actx.createOscillator();os.frequency.value=o===0.5?1180:880;g.gain.setValueAtTime(0.0001,t+o);g.gain.exponentialRampToValueAtTime(0.3,t+o+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+o+0.18);os.connect(g);g.connect(actx.destination);os.start(t+o);os.stop(t+o+0.2)})}catch(e){}try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(e){}}
-let tmr={end:0,total:0,int:null};
-function startTimer(sec,label){if(!sec)return;tmr.total=sec;tmr.end=Date.now()+sec*1000;document.getElementById("tL").textContent=label||"Recupero";document.getElementById("timer").classList.add("show");clearInterval(tmr.int);tmr.int=setInterval(tick,250);tick()}
-function tick(){const left=Math.max(0,(tmr.end-Date.now())/1000);const el=document.getElementById("tT");const sc=Math.ceil(left);el.textContent=Math.floor(sc/60)+":"+String(sc%60).padStart(2,"0");document.getElementById("tB").style.width=(left/tmr.total*100)+"%";if(left<=0){clearInterval(tmr.int);beep();el.textContent="Via!";setTimeout(()=>{if(tmr.end<=Date.now())document.getElementById("timer").classList.remove("show")},2500)}}
+function tone(freq,dur,vol,type,at){try{if(!actx)return;if(actx.state==="suspended")actx.resume();const t=actx.currentTime+(at||0),g=actx.createGain(),os=actx.createOscillator();os.type=type||"sine";os.frequency.value=freq;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(vol,t+0.015);g.gain.setValueAtTime(vol,t+dur*0.6);g.gain.exponentialRampToValueAtTime(0.0001,t+dur);os.connect(g);g.connect(actx.destination);os.start(t);os.stop(t+dur+0.05)}catch(e){}}
+function audioMix(){try{if(navigator.audioSession)navigator.audioSession.type="transient"}catch(e){}}
+function tickBeep(n){tone(n===1?988:880,0.11,0.35,"triangle")}
+function beep(){tone(1046,0.16,0.9,"square",0);tone(1568,0.75,0.9,"square",0.17);tone(784,0.75,0.6,"triangle",0.17);try{navigator.vibrate&&navigator.vibrate([200,100,400])}catch(e){}}
+let tmr={end:0,total:0,int:null,last:null};
+function startTimer(sec,label){if(!sec)return;audioMix();tmr.total=sec;tmr.end=Date.now()+sec*1000;tmr.last=null;document.getElementById("tL").textContent=label||"Recupero";document.getElementById("timer").classList.add("show");clearInterval(tmr.int);tmr.int=setInterval(tick,100);tick()}
+function tick(){const left=Math.max(0,(tmr.end-Date.now())/1000);const el=document.getElementById("tT");const sc=Math.ceil(left);el.textContent=Math.floor(sc/60)+":"+String(sc%60).padStart(2,"0");document.getElementById("tB").style.width=(left/tmr.total*100)+"%";
+  const box=document.querySelector("#timer .in");box.classList.toggle("last5",left>0&&sc<=5);
+  if(left>0&&sc<=5&&sc!==tmr.last){tmr.last=sc;tickBeep(sc);box.classList.remove("pulse");void box.offsetWidth;box.classList.add("pulse")}
+  if(left<=0){clearInterval(tmr.int);tmr.int=null;box.classList.remove("last5");beep();el.textContent="Via!";box.classList.add("go");setTimeout(()=>{box.classList.remove("go");if(tmr.end<=Date.now())document.getElementById("timer").classList.remove("show")},2500)}}
 function stopTimer(){clearInterval(tmr.int);document.getElementById("timer").classList.remove("show")}
 let wakeLock=null;async function keepAwake(){try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}
 function toast(msg){document.querySelectorAll(".toast").forEach(x=>x.remove());const t=document.createElement("div");t.className="toast";t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
@@ -688,7 +699,7 @@ const A={
   exportOpen(){modal(`<h2>Resoconto per Claude</h2><p class="small muted">Scegli il periodo. Il testo viene copiato: poi incollalo nella chat con Claude.</p><button class="opt" data-a="exportGo" data-v="28"><b>Ultime 4 settimane</b><div class="tiny muted">Ideale ogni 2–4 settimane</div></button><button class="opt" data-a="exportGo" data-v="cycle"><b>Ciclo attuale</b><div class="tiny muted">Ideale a fine ciclo, prima di cambiare esercizi</div></button><button class="opt" data-a="exportGo" data-v="all"><b>Tutto</b><div class="tiny muted">Tutta la storia dall'inizio</div></button><button class="btn ghost block" data-a="close">Chiudi</button>`)},
   async exportGo(b){const txt=buildReport(b.dataset.v);try{await navigator.clipboard.writeText(txt);closeModal();toast("Resoconto copiato: incollalo nella chat con Claude")}catch(e){modal(`<h2>Copia il resoconto</h2><p class="small muted">Tieni premuto sul testo, scegli "Seleziona tutto" e poi "Copia".</p><textarea rows="12" readonly>${esc(txt)}</textarea><button class="btn block" data-a="close" style="margin-top:10px">Chiudi</button>`)}},
   tStop(){stopTimer()},
-  tAdd(){tmr.end+=15000;tmr.total+=15;if(!tmr.int||tmr.end>Date.now()){clearInterval(tmr.int);tmr.int=setInterval(tick,250);document.getElementById("timer").classList.add("show")}},
+  tAdd(){tmr.end+=15000;tmr.total+=15;tmr.last=null;if(!tmr.int||tmr.end>Date.now()){clearInterval(tmr.int);tmr.int=setInterval(tick,100);document.getElementById("timer").classList.add("show")}},
   addW(){const kg=+document.getElementById("wKg").value,vita=+document.getElementById("wVita").value;if(!kg||kg<30||kg>250){toast("Inserisci un peso valido");return}
     const d=todayISO();st.settings.weights=st.settings.weights.filter(w=>w.d!==d);const e={d,kg};if(vita)e.vita=vita;st.settings.weights.push(e);saveSettings();render();toast("Peso salvato")},
   rmW(b){const[d,kg]=b.dataset.v.split("|");st.settings.weights=st.settings.weights.filter(w=>!(w.d===d&&String(w.kg)===kg));saveSettings();render()},
